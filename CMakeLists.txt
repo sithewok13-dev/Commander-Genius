@@ -121,6 +121,14 @@ if (IOS)
 
     FetchContent_MakeAvailable(SDL SDL_image SDL_mixer SDL_ttf curl)
 
+    # Added: Keen for iOS. Built static, SDL_image/mixer/ttf only name their
+    # targets <lib>::<lib>-static, but GsKit links <lib>::<lib>
+    foreach(_sdl_lib SDL2_image SDL2_mixer SDL2_ttf)
+        if(TARGET ${_sdl_lib} AND NOT TARGET ${_sdl_lib}::${_sdl_lib})
+            add_library(${_sdl_lib}::${_sdl_lib} ALIAS ${_sdl_lib})
+        endif()
+    endforeach()
+
     # SDL2_ttf needs to download free type before it will
     # execute_process(COMMAND ${CMAKE_BINARY_DIR}/external/SDL2_ttf/external/download.sh)
     

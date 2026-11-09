@@ -14,9 +14,11 @@ if(NOT KEEN_IOS_MIN)
   set(KEEN_IOS_MIN 15.0)
 endif()
 
-enable_language(OBJCXX)
 add_executable(Keen MACOSX_BUNDLE ${KEEN_IOS_DIR}/main.mm)
-set_source_files_properties(${KEEN_IOS_DIR}/main.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+# Objective-C++, compiled by the C++ compiler (OBJCXX can't be enabled this
+# late, inside src/)
+set_source_files_properties(${KEEN_IOS_DIR}/main.mm PROPERTIES LANGUAGE CXX
+  COMPILE_OPTIONS "-xobjective-c++;-fobjc-arc")
 target_include_directories(Keen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${SDL2_INCLUDE_DIR})
 target_link_libraries(Keen PRIVATE CGeniusExe
   "-framework Foundation"
