@@ -309,6 +309,11 @@ void CPlayGameVorticon::reloadBgMusic()
 // Process Routine
 ////
 
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS (ios/keen/KeenTouchGame.cpp): 1 a level, 2 the map
+extern "C" void KeenTouch_SeenMode(int mode);
+#endif
+
 void CPlayGameVorticon::ponder(const float deltaT)
 {
     CPlayGame::ponder(deltaT);
@@ -334,6 +339,11 @@ void CPlayGameVorticon::_ponder(const float deltaT)
 
     if( !mpFinale && !gMenuController.active() ) // Game is not paused, no messages have to be shown and no menu is open
     {
+#ifdef KEEN_IOS_TOUCH
+        // Added: Keen for iOS. The touch controls show while this is reported
+        // (also with the status screen or a message up: STATUS closes them)
+        KeenTouch_SeenMode(m_Level == WORLD_MAP_LEVEL_VORTICON ? 2 : 1);
+#endif
         auto &mplayer = gMusicPlayer;
         const auto curTrack = mplayer.getCurTrack();
         if(mCurMusicTrack != curTrack)

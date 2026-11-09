@@ -582,6 +582,11 @@ void CPlayGameGalaxy::pumpEvent(const std::shared_ptr<CEvent> &evPtr)
 /**
  *  The main ingame process cycle when keen galaxy is up and running
  */
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS (ios/keen/KeenTouchGame.cpp): 1 a level, 2 the map
+extern "C" void KeenTouch_SeenMode(int mode);
+#endif
+
 void CPlayGameGalaxy::ponder(const float deltaT)
 {
     CPlayGame::ponder(deltaT);
@@ -590,6 +595,11 @@ void CPlayGameGalaxy::ponder(const float deltaT)
     {
         return;
     }
+
+#ifdef KEEN_IOS_TOUCH
+    // Added: Keen for iOS. The touch controls show while this is reported
+    KeenTouch_SeenMode(mWorldMapActive ? 2 : 1);
+#endif
 
     processInput();
 

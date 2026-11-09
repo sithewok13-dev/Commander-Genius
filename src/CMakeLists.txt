@@ -163,6 +163,15 @@ if(IOS)
     include(${CMAKE_SOURCE_DIR}/ios/keen/keen_app.cmake)
 endif(IOS)
 
+# Added: Keen for iOS. A Linux test build of the touch controls' engine side:
+# -DKEEN_TOUCH_RIG_SOURCES="<files>" adds ios/keen/KeenTouchCore.c,
+# KeenTouchGame.cpp and a scripted stand-in for the UIKit view (kept outside
+# the repository) to the Linux program, with KEEN_IOS_TOUCH defined.
+if(KEEN_TOUCH_RIG_SOURCES AND NOT IOS)
+    target_sources(CGeniusExe PRIVATE ${KEEN_TOUCH_RIG_SOURCES})
+    target_include_directories(CGeniusExe PRIVATE ${CMAKE_SOURCE_DIR}/ios/keen ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 # The Windows Version has an icon in the executable
 IF(WIN32)
     SET_TARGET_PROPERTIES(CGeniusExe PROPERTIES OUTPUT_NAME "CGenius")

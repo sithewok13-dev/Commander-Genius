@@ -121,6 +121,10 @@ if (IOS)
 
     FetchContent_MakeAvailable(SDL SDL_image SDL_mixer SDL_ttf curl)
 
+    # Added: Keen for iOS. The app's touch controls (ios/keen/KeenTouch*),
+    # hooked into the engine where marked KEEN_IOS_TOUCH
+    add_definitions(-DKEEN_IOS_TOUCH)
+
     # Added: Keen for iOS. Built static, SDL_image/mixer/ttf only name their
     # targets <lib>::<lib>-static, but GsKit links <lib>::<lib>
     foreach(_sdl_lib SDL2_image SDL2_mixer SDL2_ttf)

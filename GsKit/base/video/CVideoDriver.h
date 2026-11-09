@@ -184,7 +184,12 @@ public:
     }
 
 #ifdef USE_VIRTUALPAD
+#ifdef KEEN_IOS_TOUCH
+    // Added: Keen for iOS. The app's own touch controls replace this pad
+    bool VGamePadEnabled() { return false; }
+#else
     bool VGamePadEnabled() { return mVidConfig.mVPad;   }
+#endif
 #endif
 
     bool getRefreshSignal() { return m_mustrefresh; }

@@ -898,6 +898,11 @@ void CInput::flushFingerEvents()
 }
 
 
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS (ios/keen/KeenTouchGame.cpp, linked into the app)
+extern "C" void KeenTouch_ApplyInput(void);
+#endif
+
 void CInput::pollEvents()
 {
     // Semaphore
@@ -1233,6 +1238,12 @@ void CInput::pollEvents()
 #ifdef MOUSEWRAPPER
     // Handle mouse emulation layer
     processMouse();
+#endif
+
+#ifdef KEEN_IOS_TOUCH
+    // Added: Keen for iOS. The touch controls press the same input commands
+    // as the keyboard (ios/keen/KeenTouchGame.cpp)
+    KeenTouch_ApplyInput();
 #endif
 
     for(unsigned int i = 0; i < KEYTABLE_SIZE; ++i)

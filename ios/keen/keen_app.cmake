@@ -20,6 +20,16 @@ add_executable(Keen MACOSX_BUNDLE ${KEEN_IOS_DIR}/main.mm)
 set_source_files_properties(${KEEN_IOS_DIR}/main.mm PROPERTIES LANGUAGE CXX
   COMPILE_OPTIONS "-xobjective-c++;-fobjc-arc")
 target_include_directories(Keen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${SDL2_INCLUDE_DIR})
+
+# The touch controls (KeenTouch.h): the logic in plain C, the UIKit view
+# (Objective-C with ARC, compiled by the C compiler), and the engine side
+target_sources(Keen PRIVATE
+  ${KEEN_IOS_DIR}/KeenTouchCore.c
+  ${KEEN_IOS_DIR}/KeenTouch.m
+  ${KEEN_IOS_DIR}/KeenTouchGame.cpp)
+set_source_files_properties(${KEEN_IOS_DIR}/KeenTouch.m PROPERTIES LANGUAGE C
+  COMPILE_OPTIONS "-xobjective-c;-fobjc-arc")
+target_include_directories(Keen PRIVATE ${KEEN_IOS_DIR})
 target_link_libraries(Keen PRIVATE CGeniusExe
   "-framework Foundation"
   "-framework UIKit"
