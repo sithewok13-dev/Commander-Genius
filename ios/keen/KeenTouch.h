@@ -8,7 +8,7 @@
    - STATUS at the top left; QUICK SAVE, QUICK LOAD (0.3 s holds with a ring)
      and MENU (tap: the game's menu; 0.45 s hold: the tray) at the top right,
    - MENU's tray: FPS and the keyboard (for the sithewok cheat), with the
-     app's version under it.
+     app's build stamp under it.
 
    KeenTouchCore.c is plain C (no UIKit) so the Linux test drives the very
    same code; KeenTouch.m is the thin UIKit view that feeds it touches and

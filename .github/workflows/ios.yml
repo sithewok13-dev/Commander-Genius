@@ -60,6 +60,8 @@ jobs:
     name: Keen
     runs-on: macos-15
     timeout-minutes: 90
+    outputs:
+      build_date: ${{ steps.stamp.outputs.date }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -114,14 +116,26 @@ jobs:
     - name: Build
       run: cmake --build build --target Keen -- -k 0
 
+    # The build stamp (the run number and the UTC date), shown under the
+    # open MENU tray as "build 80 · Nov 9" and on the release's first line
+    - name: Build stamp
+      id: stamp
+      run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
     - name: Package .ipa
       run: |
         set -e
         APP=$(find build -name "Keen.app" -type d | head -1)
         echo "App bundle: $APP"
         ls -la "$APP"
-        plutil -lint "$APP/Info.plist"
-        plutil -p "$APP/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleDisplayName|CFBundleShortVersionString|MinimumOSVersion'
+        PL="$APP/Info.plist"
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PL"
+        /usr/libexec/PlistBuddy -c "Delete :SWBuildNumber" "$PL" 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Delete :SWBuildDate" "$PL" 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Add :SWBuildNumber string ${{ github.run_number }}" "$PL"
+        /usr/libexec/PlistBuddy -c "Add :SWBuildDate string ${{ steps.stamp.outputs.date }}" "$PL"
+        plutil -lint "$PL"
+        plutil -p "$PL" | grep -E 'CFBundleIdentifier|CFBundleDisplayName|CFBundle(Short)?Version|MinimumOSVersion|SWBuild'
         file "$APP/Keen"
         # No game files may be in the app: only Commander Genius's own vfsroot
         if find "$APP" -iname '*.ck[1-6]' -o -iname 'keen*.exe' | grep -q .; then
@@ -175,6 +189,7 @@ jobs:
         prerelease: true
         make_latest: false
         body: |
+          Build ${{ github.run_number }} · ${{ needs.build.outputs.build_date }}
           Development builds, rebuilt after every push to the `ios` branch (run ${{ github.run_number }}, commit ${{ github.sha }}). They may not have been tried yet. For the latest release and how to install it, see ${{ github.server_url }}/${{ github.repository }}/releases/latest
           Keen-ios.ipa is the Keen app (Commander Genius: Commander Keen 1-6; Keen Dreams runs but has no touch controls yet). No game files are included.
           Sideload it, open it once, then copy your own game folders (KEEN1, KEEN2 ...) into Files > On My iPhone > Keen > games.
@@ -206,6 +221,8 @@ jobs:
           *) PRERELEASE=false; LATEST=true ;;
         esac
         echo "Release \"$RELEASE_TITLE $VERSION\", prerelease $PRERELEASE, latest $LATEST"
+        # The release text: the build stamp's line first, then the notes
+        { echo "Build ${{ github.run_number }} · ${{ needs.build.outputs.build_date }}"; echo; cat ios/RELEASE_NOTES.md; } > release-notes.md
         {
           echo "name=$RELEASE_TITLE $VERSION"
           echo "prerelease=$PRERELEASE"
@@ -221,7 +238,7 @@ jobs:
         tag_name: ${{ env.RELEASE_TAG }}
         target_commitish: ${{ github.sha }}
         name: ${{ steps.rel.outputs.name }}
-        body_path: ios/RELEASE_NOTES.md
+        body_path: release-notes.md
         prerelease: ${{ steps.rel.outputs.prerelease }}
         make_latest: ${{ steps.rel.outputs.latest }}
         files: release/*.ipa

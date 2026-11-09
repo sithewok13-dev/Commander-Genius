@@ -76,8 +76,8 @@ void KT_Layout(KT_State *s, float W, float H, float inLeft, float inTop, float i
   s->fpsX = s->right - 216.0f;
   s->fpsY = rowY;
 
-  /* MENU's tray: the keyboard right under MENU, FPS to its left; the version
-     label under the row */
+  /* MENU's tray: the keyboard right under MENU, FPS to its left; the build
+     stamp under the row */
   const float ty = rowY + 52.0f;
   s->btn[KT_BTN_TRAYKEYS].x = s->btn[KT_BTN_MENU].x;
   s->btn[KT_BTN_TRAYFPS].x = s->btn[KT_BTN_MENU].x - KT_TRAY_STEP;

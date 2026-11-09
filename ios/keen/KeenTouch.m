@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
+#include <stdio.h>
 #include "KeenTouch.h"
 #include "KeenTouchView.h"
 
@@ -201,15 +202,27 @@ static void KT_DrawKeyboard(CGPoint c, UIColor *color)
     }
   }
 
-  // The tray's version label: which build this is
+  // Under the open tray, the build stamp from the Info.plist keys CI writes
+  // (SWBuildNumber, and SWBuildDate as YYYY-MM-DD in UTC): "build 80 · Nov 9";
+  // "build dev" for a local build without them. Only words, not a button.
   if (_kt.trayOpen) {
     NSDictionary *info = [NSBundle mainBundle].infoDictionary;
-    NSString *ver = info[@"CFBundleShortVersionString"] ?: @"?";
-    NSString *build = info[@"CFBundleVersion"];
-    NSString *label = [NSString stringWithFormat:@"v%@", ver];
-    if (build.length && ![build isEqualToString:ver]) label = [label stringByAppendingFormat:@" (%@)", build];
-    const CGFloat midX = (_kt.btn[KT_BTN_TRAYFPS].x + _kt.btn[KT_BTN_TRAYKEYS].x) * 0.5;
-    KT_DrawLabel(label, CGPointMake(midX, _kt.versionY), 9, [UIColor colorWithWhite:1 alpha:0.5]);
+    id num = info[@"SWBuildNumber"], date = info[@"SWBuildDate"];
+    NSString *label = @"build dev";
+    if ([num isKindOfClass:[NSString class]] && [num length] > 0) {
+      static const char *months[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+      int y = 0, m = 0, d = 0;
+      if ([date isKindOfClass:[NSString class]] && sscanf([date UTF8String], "%d-%d-%d", &y, &m, &d) == 3 &&
+          m >= 1 && m <= 12 && d >= 1 && d <= 31)
+        label = [NSString stringWithFormat:@"build %@ \u00B7 %s %d", num, months[m - 1], d];
+      else
+        label = [NSString stringWithFormat:@"build %@", num];
+    }
+    // centred under the tray, but kept inside the safe area on the right
+    const CGFloat w = [label sizeWithAttributes:@{ NSFontAttributeName : [UIFont boldSystemFontOfSize:11] }].width;
+    const CGFloat midX = fmin((_kt.btn[KT_BTN_TRAYFPS].x + _kt.btn[KT_BTN_TRAYKEYS].x) * 0.5, _kt.right - w * 0.5);
+    KT_DrawLabel(label, CGPointMake(midX, _kt.versionY), 11, [UIColor colorWithWhite:1 alpha:0.55]);
   }
 
   if (_kt.showFps)
