@@ -7,6 +7,7 @@
 #include "KeenTouchView.h"
 
 #include <base/CInput.h>
+#include <base/GsTimer.h>
 #include <engine/core/CBehaviorEngine.h>
 #include <SDL.h>
 
@@ -17,12 +18,34 @@
 namespace
 {
 int sSeenMode = KT_MODE_NONE;
-Uint32 sSeenTicks = 0;
+int sPollsUnseen = 1000;
 unsigned int sLastCommands = 0;
+unsigned int sPendingPulses = 0;
+SDL_atomic_t sAway;        // the app isn't active (another app, the home screen, a call)
+bool sWatching = false;
 
-// How long the game may go without reporting its mode before the overlay
-// hides (a menu has opened, or a cut scene started)
-constexpr Uint32 kModeTimeoutMs = 250;
+// The app going away and coming back (SDL sends these from UIKit's callbacks)
+int SDLCALL AppEvents(void *, SDL_Event *e)
+{
+    switch (e->type)
+    {
+    case SDL_APP_WILLENTERBACKGROUND:
+        SDL_AtomicSet(&sAway, 1);
+        break;
+    case SDL_APP_DIDENTERFOREGROUND:
+        SDL_AtomicSet(&sAway, 0);
+        break;
+    default:
+        break;
+    }
+    return 1;
+}
+
+// How many polls the game may go without reporting its mode before the
+// overlay hides (a menu has opened, or a cut scene started). Counted in polls,
+// not time: every poll is followed by one game step (GsApp.cpp), so a slow
+// load or a hitch doesn't hide the controls.
+constexpr int kModeTimeoutPolls = 8;
 
 struct CommandMap { unsigned int bit; int command; };
 const CommandMap kCommands[] = {
@@ -38,13 +61,46 @@ const CommandMap kCommands[] = {
 extern "C" void KeenTouch_SeenMode(int mode)
 {
     sSeenMode = mode;
-    sSeenTicks = SDL_GetTicks();
+    sPollsUnseen = 0;
 }
 
 extern "C" void KeenTouch_ApplyInput(void)
 {
-    const int mode = (SDL_GetTicks() - sSeenTicks < kModeTimeoutMs) ? sSeenMode : KT_MODE_NONE;
-    const unsigned int now = KeenTouchView_Frame(mode);
+    if (!sWatching)
+    {
+        SDL_AddEventWatch(AppEvents, nullptr);
+        sWatching = true;
+    }
+
+    int mode = (sPollsUnseen < kModeTimeoutPolls) ? sSeenMode : KT_MODE_NONE;
+    sPollsUnseen++;
+
+    // While the app is in the background the game stands still: nothing
+    // held, nothing drawn, the game's clock not running. Back in a level or
+    // on a map, it comes back to the game's menu (paused), not straight into
+    // the action.
+    if (SDL_AtomicGet(&sAway))
+    {
+        for (const auto &c : kCommands)
+        {
+            if (sLastCommands & c.bit)
+                gInput.setCommand(0, c.command, false);
+        }
+        sLastCommands = 0;
+        KeenTouchView_Frame(KT_MODE_NONE); // lets go of every touch
+        while (SDL_AtomicGet(&sAway))
+        {
+            SDL_PumpEvents();
+            SDL_Delay(50);
+        }
+        gTimer.setLogicReset(true);
+        if (mode != KT_MODE_NONE)
+            sPendingPulses |= KT_CMD_MENU;
+        mode = KT_MODE_NONE;
+    }
+
+    const unsigned int now = KeenTouchView_Frame(mode) | sPendingPulses;
+    sPendingPulses = 0;
 
     // Only what changed is written, so the keyboard and a game controller
     // keep working alongside the touches. A pulse (a tap, a finished hold)
@@ -60,8 +116,9 @@ extern "C" void KeenTouch_ApplyInput(void)
 
 // sithewok: everything at once (all items, keys and ammo; in Keen 1-3 also
 // the pogo stick and 5 lives) and invincibility. "sithewok noclip" walks
-// through walls (on a map: anywhere, to any level), "sithewok jump" jumps
-// without limit, "sithewok off" ends invincibility, noclip and jump (the
+// through walls (on a map: anywhere, to any level; in Keen 1-3 the engine
+// does this on the map only), "sithewok jump" jumps without limit (Keen 1-3:
+// on the pogo), "sithewok off" ends invincibility, noclip and jump (the
 // items are kept).
 extern "C" int KeenTouch_CheatTyped(const char *text)
 {
@@ -80,12 +137,12 @@ extern "C" int KeenTouch_CheatTyped(const char *text)
     else if (s == "sithewok noclip")
     {
         cheat.noclipping = !cheat.noclipping;
-        KeenTouchView_Message(cheat.noclipping ? "sithewok: walk through walls ON" : "sithewok: walk through walls OFF");
+        KeenTouchView_Message(cheat.noclipping ? "sithewok: walk through walls ON (Keen 1-3: on the map only)" : "sithewok: walk through walls OFF");
     }
     else if (s == "sithewok jump")
     {
         cheat.jump = !cheat.jump;
-        KeenTouchView_Message(cheat.jump ? "sithewok: endless jumping ON" : "sithewok: endless jumping OFF");
+        KeenTouchView_Message(cheat.jump ? "sithewok: endless jumping ON (Keen 1-3: on the pogo)" : "sithewok: endless jumping OFF");
     }
     else if (s == "sithewok off")
     {

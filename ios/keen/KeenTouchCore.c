@@ -21,6 +21,7 @@ static const KT_Button kButtons[KT_BTN_COUNT] = {
 
 static int IsTray(int b) { return b == KT_BTN_TRAYFPS || b == KT_BTN_TRAYKEYS; }
 static int IsCluster(int b) { return b == KT_BTN_FIRE || b == KT_BTN_JUMP || b == KT_BTN_POGO; }
+static unsigned int ClusterCmd(int b) { return b == KT_BTN_FIRE ? KT_CMD_FIRE : b == KT_BTN_JUMP ? KT_CMD_JUMP : KT_CMD_POGO; }
 
 static void UpdateShown(KT_State *s)
 {
@@ -75,8 +76,8 @@ void KT_Layout(KT_State *s, float W, float H, float inLeft, float inTop, float i
   s->fpsX = s->right - 216.0f;
   s->fpsY = rowY;
 
-  /* MENU's tray: the keyboard right under MENU (a held thumb slides straight
-     down onto it), FPS to its left; the version label under the row */
+  /* MENU's tray: the keyboard right under MENU, FPS to its left; the version
+     label under the row */
   const float ty = rowY + 52.0f;
   s->btn[KT_BTN_TRAYKEYS].x = s->btn[KT_BTN_MENU].x;
   s->btn[KT_BTN_TRAYFPS].x = s->btn[KT_BTN_MENU].x - KT_TRAY_STEP;
@@ -183,7 +184,7 @@ static void UpdateHeld(KT_State *s)
   for (int i = 0; i < KT_MAX_TOUCHES; i++) {
     const KT_Touch *t = &s->touch[i];
     if (!t->id || !IsCluster(t->owner) || !s->btn[t->owner].shown) continue;
-    held |= t->owner == KT_BTN_FIRE ? KT_CMD_FIRE : t->owner == KT_BTN_JUMP ? KT_CMD_JUMP : KT_CMD_POGO;
+    held |= ClusterCmd(t->owner);
   }
   if (held != s->held) s->dirty = 1;
   s->held = held;
@@ -217,7 +218,11 @@ void KT_TouchBegan(KT_State *s, long id, float x, float y, double t)
   const int b = ButtonAt(s, x, y, 0);
   if (b >= 0) {
     /* a second finger on a button already held does nothing (one save, one menu) */
-    if (!OwnedByOther(s, b, slot)) slot->owner = b;
+    if (!OwnedByOther(s, b, slot)) {
+      slot->owner = b;
+      /* a tap quicker than a frame still presses it for one */
+      if (IsCluster(b) && s->btn[b].shown) s->pulses |= ClusterCmd(b);
+    }
   } else if (InStickZone(s, x, y) && s->stickTouch < 0) {
     slot->owner = -1;
     s->stickTouch = (int)(slot - s->touch);
@@ -240,7 +245,12 @@ void KT_TouchMoved(KT_State *s, long id, float x, float y, double t)
     if (IsCluster(p->owner)) {
       /* a thumb can roll from one of JUMP, POGO, FIRE onto another */
       const int nb = ButtonAt(s, x, y, 0);
-      if (!on && nb >= 0 && IsCluster(nb) && !OwnedByOther(s, nb, p)) p->owner = nb;
+      if (!on && nb >= 0 && IsCluster(nb) && !OwnedByOther(s, nb, p)) {
+        p->owner = nb;
+        s->pulses |= ClusterCmd(nb);
+      }
+      /* sliding off into empty space keeps the button held until the thumb
+         lifts or rolls onto another: forgiving for a thumb that drifts */
     } else if (!on && p->on) {
       p->on = 0; /* slid off: the hold or tap is cancelled for good */
       s->dirty = 1;

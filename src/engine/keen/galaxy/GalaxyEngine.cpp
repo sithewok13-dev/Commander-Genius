@@ -128,12 +128,23 @@ bool GalaxyEngine::start()
     return KeenEngine::start();
 }
 
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS (ios/keen/KeenTouchGame.cpp)
+extern "C" void KeenTouch_SeenMode(int mode);
+#endif
+
 void GalaxyEngine::ponder(const float deltaT)
 {
     const int ep = gBehaviorEngine.getEpisode();
 
     if(mpComputerWrist)
     {
+#ifdef KEEN_IOS_TOUCH
+        // Added: Keen for iOS. The wrist computer's pages are read with the
+        // arrows, JUMP, STATUS and MENU, so the touch controls stay
+        // (shown as on the map)
+        KeenTouch_SeenMode(2);
+#endif
         mpComputerWrist->ponder(deltaT);
         return;
     }

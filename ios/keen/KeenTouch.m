@@ -234,10 +234,10 @@ static void KT_Attach(void)
   for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
     if (![scene isKindOfClass:[UIWindowScene class]]) continue;
     for (UIWindow *w in ((UIWindowScene *)scene).windows)
-      if (w.isKeyWindow || !window) window = w;
+      if (w.isKeyWindow) window = w;
   }
   UIView *host = window.rootViewController.view;
-  if (!host) return;
+  if (!host) return; // no key window yet: try again next frame
   _overlay = [[KeenTouchOverlay alloc] initWithFrame:host.bounds];
   [host addSubview:_overlay];
   [_overlay setNeedsLayout];
@@ -248,6 +248,13 @@ unsigned int KeenTouchView_Frame(int mode)
   if (!_ktInit) {
     KT_Init(&_kt);
     _ktInit = 1;
+  }
+  // Video settings recreate SDL's window: move to the new one, letting go of
+  // every touch on the old
+  if (_overlay && (_overlay.window == nil || _overlay.window.hidden)) {
+    [_overlay removeFromSuperview];
+    _overlay = nil;
+    KT_SetMode(&_kt, KT_MODE_NONE);
   }
   if (!_overlay) KT_Attach();
   if (_overlay && _overlay.superview && _overlay.superview.subviews.lastObject != _overlay)
