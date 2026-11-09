@@ -156,34 +156,11 @@ target_link_libraries (CGeniusExe PUBLIC engine)
 target_link_libraries (CGeniusExe PUBLIC GsKit)
 
 # iOS-specific linking
+# Added: Keen for iOS. The app bundle is built by ios/keen/keen_app.cmake
+# (replaces the earlier CGeniusExeIos target, which linked SDLMain.mm from
+# the Xcode project).
 if(IOS)
-
-    # Add SDLMain.mm to sources
-    list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../iOS/CommanderGenius/CommanderGenius/SDLMain.mm")
-
-    # Tell CMake to create an iOS App Bundle (.app) instead of a dylib
-    add_executable(CGeniusExeIos MACOSX_BUNDLE ${SOURCES})
-
-    # Link SDL2 libraries that were fetched in the root CMakeLists.txt
-	target_link_libraries(CGeniusExeIos PUBLIC CGeniusExe)
-
-    set_target_properties(CGeniusExe PROPERTIES
-        MACOSX_BUNDLE TRUE
-        OUTPUT_NAME "CommanderGenius"
-        # Enable Automatic ARC for Objective-C if needed
-        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC "YES" 
-    )
-
-    message(STATUS "Configured CommanderGenius as a runnable iOS App Bundle with SDLMain.mm")
-
-#    # Set library properties for iOS
-#    set_target_properties(CGeniusExe PROPERTIES
-#        FRAMEWORK FALSE
-#        MACOSX_BUNDLE FALSE
-#        OUTPUT_NAME "CommanderGenius"
-#    )
-    
-    message(STATUS "iOS build configured. Library will be libCommanderGenius.dylib")
+    include(${CMAKE_SOURCE_DIR}/ios/keen/keen_app.cmake)
 endif(IOS)
 
 # The Windows Version has an icon in the executable

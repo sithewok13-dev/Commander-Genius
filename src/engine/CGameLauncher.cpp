@@ -266,11 +266,22 @@ bool GameLauncher::setupMenu()
         auto solvedPath = searchPathGames;
         ReplaceFileVariables(solvedPath);
 
+#if defined(TARGET_IOS)
+        // Added: Keen for iOS. Name the folder as the Files app shows it
+        // (the sandbox path above means nothing to a player).
+        (void)solvedPath;
+        ss << "No games found!\n";
+        ss << "Copy your game folders (KEEN1,\n";
+        ss << "KEEN2 ...) into the Files app:\n";
+        ss << "On My iPhone > Keen > games,\n";
+        ss << "then open Keen again.\n";
+#else
         ss << "No games detected!\n";
         ss << "You can copy some into:\n";
         ss << "\"" << solvedPath << "\",\n";
         ss << "or download using \"+ More\" button\n";
         ss << "on the next page.\n";
+#endif
 
         std::string msg(ss.str());
 

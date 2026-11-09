@@ -1,0 +1,228 @@
+name: iOS
+
+# Builds the unsigned Keen-ios.ipa: Commander Genius (Commander Keen 1-6 and
+# Keen Dreams) as an iPhone and iPad app with touch controls. Sideload it
+# (e.g. with Signulous); players copy their own game folders in through the
+# Files app. No game files are in this repository or the .ipa.
+#
+# Where the .ipa goes:
+#   - a push to ios-wip: a test build, kept as the run's artifact only.
+#   - a push to ios, or a manual run with "release" left empty: the
+#     "ios-latest" prerelease.
+#   - a manual run of branch ios with "release" set to a tag such as ios-v0.1
+#     (gh workflow run ios.yml --ref ios -f release=ios-v0.1): a release for
+#     that tag, created at the commit being built, with ios/RELEASE_NOTES.md
+#     from that commit as its text and the .ipa files in RELEASE_IPAS
+#     attached, marked as the latest release. A version with a '-' in it
+#     (ios-v0.2-beta1) is a prerelease instead and isn't marked latest.
+#     ios-latest is left alone. The run stops before building if the tag isn't
+#     ios-v<version>, is already on another commit, or the notes have no
+#     "### What's in <tag>" line.
+#   Running it again for the same tag on the same commit updates that release.
+#
+# SDL2 (with image, mixer and ttf) and curl are fetched and built by the
+# top-level CMakeLists.txt (its IOS section); the app bundle is made by
+# ios/keen/keen_app.cmake.
+
+on:
+  push:
+    branches: [ "ios", "ios-wip" ]
+    paths-ignore: [ "**.md" ]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: >-
+          Publish this build as a release with this tag (for example ios-v0.1),
+          created at the commit being built. Leave empty to update ios-latest as usual.
+        required: false
+        default: ''
+
+concurrency:
+  # Release runs for one tag go one at a time; a running one is never cancelled.
+  # Every other run has a group of its own.
+  group: ${{ inputs.release != '' && format('ios-release-{0}', inputs.release) || format('ios-run-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+env:
+  IOS_MIN: "15.0"
+  RELEASE_TAG: ${{ inputs.release }}
+  # The .ipa files a release gets, space-separated
+  RELEASE_IPAS: Keen-ios.ipa
+  # Release title; the tag's version is added after it (ios-v0.1 -> "... v0.1")
+  RELEASE_TITLE: "Keen for iOS (Commander Genius)"
+
+# Read-only by default; only the release job, which publishes, can write.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Keen
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Select newest Xcode
+      run: |
+        set -e
+        XCODE=$(ls -d /Applications/Xcode_*.app | grep -iv beta | sort -V | tail -1)
+        echo "Using $XCODE"
+        sudo xcode-select -s "$XCODE/Contents/Developer"
+        xcodebuild -version
+        xcrun --sdk iphoneos --show-sdk-version
+
+    # Before the build: a release needs a usable tag and notes written for it.
+    - name: Check release tag and notes
+      if: env.RELEASE_TAG != ''
+      run: |
+        set -e
+        case "$RELEASE_TAG" in
+          ios-v*) ;;
+          *) echo "::error::Release tag \"$RELEASE_TAG\" should look like ios-v0.1 (ios-v<version>)."; exit 1 ;;
+        esac
+        if ! git check-ref-format "refs/tags/$RELEASE_TAG"; then
+          echo "::error::\"$RELEASE_TAG\" can't be a git tag name."
+          exit 1
+        fi
+        REFS=$(git ls-remote origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")
+        TAGGED=$(echo "$REFS" | tail -n 1 | cut -f 1)
+        if [ -n "$TAGGED" ] && [ "$TAGGED" != "$GITHUB_SHA" ]; then
+          echo "::error::Tag $RELEASE_TAG is already on commit $TAGGED, not on $GITHUB_SHA (the commit this run builds). Pick a new tag."
+          exit 1
+        fi
+        if ! grep -qxF "### What's in ${RELEASE_TAG}" ios/RELEASE_NOTES.md; then
+          echo "::error file=ios/RELEASE_NOTES.md::No \"### What's in ${RELEASE_TAG}\" heading line. Update the release notes for ${RELEASE_TAG}, commit and push them, then run this again."
+          exit 1
+        fi
+
+    - name: Host tools
+      run: brew install ninja || true
+
+    - name: Configure
+      run: |
+        cmake -S . -B build -G Ninja \
+          -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+          -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=$IOS_MIN \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DUSE_OPENGL=OFF -DUSE_CRASHHANDLER=OFF \
+          -DKEEN_IOS_MIN=$IOS_MIN \
+          -DKEEN_IOS_BUILD_NUMBER=${{ github.run_number }}
+
+    - name: Build
+      run: cmake --build build --target Keen -- -k 0
+
+    - name: Package .ipa
+      run: |
+        set -e
+        APP=$(find build -name "Keen.app" -type d | head -1)
+        echo "App bundle: $APP"
+        ls -la "$APP"
+        plutil -lint "$APP/Info.plist"
+        plutil -p "$APP/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleDisplayName|CFBundleShortVersionString|MinimumOSVersion'
+        file "$APP/Keen"
+        # No game files may be in the app: only Commander Genius's own vfsroot
+        if find "$APP" -iname '*.ck[1-6]' -o -iname 'keen*.exe' | grep -q .; then
+          echo "::error::Game files found in the app bundle"; exit 1
+        fi
+        codesign --force --sign - --timestamp=none "$APP"
+        mkdir -p ipa/Payload
+        cp -R "$APP" ipa/Payload/
+        (cd ipa && zip -qry ../Keen-ios.ipa Payload)
+        ls -la *.ipa
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: Keen-ios
+        path: Keen-ios.ipa
+
+  release:
+    name: ${{ inputs.release != '' && format('Publish release {0}', inputs.release) || 'Publish to "iOS latest" release' }}
+    needs: build
+    # Only the ios branch publishes. Other branches can be built by hand
+    # (Actions > iOS > Run workflow) to try a change; their .ipa is kept as
+    # the run's artifact only.
+    if: github.ref == 'refs/heads/ios'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    # Release runs only: the notes from the run's commit, for the release text.
+    # Kept first, as checkout empties the folder it checks out into.
+    - name: Get release notes
+      if: env.RELEASE_TAG != ''
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: ios/RELEASE_NOTES.md
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
+    - uses: actions/download-artifact@v4
+      with:
+        path: out
+        merge-multiple: true
+
+    # Pushes and ordinary manual runs; a release run leaves ios-latest alone.
+    - name: Publish to "ios-latest" release
+      if: env.RELEASE_TAG == ''
+      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+      with:
+        tag_name: ios-latest
+        name: iOS latest build
+        prerelease: true
+        make_latest: false
+        body: |
+          Development builds, rebuilt after every push to the `ios` branch (run ${{ github.run_number }}, commit ${{ github.sha }}). They may not have been tried yet. For the latest release and how to install it, see ${{ github.server_url }}/${{ github.repository }}/releases/latest
+          Keen-ios.ipa is the Keen app (Commander Genius: Commander Keen 1-6 and Keen Dreams). No game files are included.
+          Sideload it, open it once, then copy your own game folders (KEEN1, KEEN2 ...) into Files > On My iPhone > Keen > games.
+        files: out/*.ipa
+
+    # Release runs: only the games in RELEASE_IPAS, the title and whether it's
+    # a prerelease (a '-' in the version, after the "ios-").
+    - name: Prepare release
+      id: rel
+      if: env.RELEASE_TAG != ''
+      run: |
+        set -e
+        if ! grep -qxF "### What's in ${RELEASE_TAG}" ios/RELEASE_NOTES.md; then
+          echo "::error file=ios/RELEASE_NOTES.md::No \"### What's in ${RELEASE_TAG}\" heading line."
+          exit 1
+        fi
+        mkdir release
+        for ipa in $RELEASE_IPAS; do
+          if [ ! -f "out/$ipa" ]; then
+            echo "::error::$ipa (in RELEASE_IPAS) wasn't built."
+            exit 1
+          fi
+          cp "out/$ipa" release/
+        done
+        ls -la release
+        VERSION=${RELEASE_TAG#ios-}
+        case "$VERSION" in
+          *-*) PRERELEASE=true; LATEST=false ;;
+          *) PRERELEASE=false; LATEST=true ;;
+        esac
+        echo "Release \"$RELEASE_TITLE $VERSION\", prerelease $PRERELEASE, latest $LATEST"
+        {
+          echo "name=$RELEASE_TITLE $VERSION"
+          echo "prerelease=$PRERELEASE"
+          echo "latest=$LATEST"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Publish release for the tag
+      if: env.RELEASE_TAG != ''
+      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+      with:
+        # Creates the tag at the commit this run built (left out, GitHub would
+        # put a new tag on the default branch, main)
+        tag_name: ${{ env.RELEASE_TAG }}
+        target_commitish: ${{ github.sha }}
+        name: ${{ steps.rel.outputs.name }}
+        body_path: ios/RELEASE_NOTES.md
+        prerelease: ${{ steps.rel.outputs.prerelease }}
+        make_latest: ${{ steps.rel.outputs.latest }}
+        files: release/*.ipa
+        fail_on_unmatched_files: true

@@ -499,6 +499,8 @@ void InitBaseSearchPaths()
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
     // Use the ios container's shared dir passed in at runtime
     AddToFileList(&basesearchpaths, gIOSSandboxSharedFilesDir);
+    // Added: Keen for iOS. Commander Genius's own files (vfsroot) are in the app bundle, next to the program
+    AddToFileList(&basesearchpaths, "${BIN}");
 #elif defined(__APPLE__)
     AddToFileList(&basesearchpaths, "${HOME}/Library/Application Support/Commander Genius");
     AddToFileList(&basesearchpaths, ".");
