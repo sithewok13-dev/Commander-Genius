@@ -264,8 +264,7 @@ unsigned int KeenTouchView_Frame(int mode)
       _kt.wantKeyboard = 0;
       [_overlay.typing becomeFirstResponder];
     }
-    // FPS: frames counted over KT_FPS_PERIOD
-    _overlay.fpsFrames++;
+    // FPS: frames drawn (KeenTouchView_FrameDrawn) over KT_FPS_PERIOD
     if (now - _overlay.fpsStart >= KT_FPS_PERIOD) {
       const int fps = (int)lround(_overlay.fpsFrames / (now - _overlay.fpsStart));
       if (_kt.showFps && fps != _overlay.fpsShown) _kt.dirty = 1;
@@ -283,6 +282,11 @@ unsigned int KeenTouchView_Frame(int mode)
     }
   }
   return KT_TakeCommands(&_kt);
+}
+
+void KeenTouchView_FrameDrawn(void)
+{
+  if (_overlay) _overlay.fpsFrames++;
 }
 
 void KeenTouchView_Message(const char *text)

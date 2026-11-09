@@ -242,8 +242,16 @@ void GsApp::ponder(const float deltaT)
     gMenuController.ponder(deltaT);
 }
 
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS. The FPS readout counts drawn frames (ios/keen/KeenTouch.m)
+extern "C" void KeenTouchView_FrameDrawn(void);
+#endif
+
 void GsApp::render()
 {
+#ifdef KEEN_IOS_TOUCH
+    KeenTouchView_FrameDrawn();
+#endif
     gVideoDriver.clearSurfaces();
 
     if(mpCurEngine)

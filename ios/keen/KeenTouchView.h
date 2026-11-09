@@ -9,6 +9,8 @@ extern "C" {
    it the game's mode, finishes holds, redraws, and returns the game
    commands the touches hold or pulse (KT_CMD_*). */
 unsigned int KeenTouchView_Frame(int mode);
+/* Once per frame drawn (GsApp::render), for the FPS readout */
+void KeenTouchView_FrameDrawn(void);
 /* A short line shown over the game for a few seconds */
 void KeenTouchView_Message(const char *text);
 #ifdef __cplusplus
