@@ -123,6 +123,41 @@ static const BE_GameVerDetails_T g_be_gamever_kdreamse113 = {
     BE_GAMEVER_KDREAMSE113
 };
 
+// Added: Keen for iOS. Keen Dreams v1.93 (the last registered DOS release),
+// as in refkeen/be_cross_fs.cpp. The game code already handles this version;
+// only the choice of version was missing (see DreamsEngine::start).
+static const BE_GameFileDetails_T g_be_reqgameverfiles_kdreamse193[] = {
+    {"KDREAMS.AUD", 3498, 0x80ac85e5},
+    {"KDREAMS.CMP", 14620, 0x1681bc21},
+    {"KDREAMS.EGA", 213045, 0x2dc94687},
+    {"KDREAMS.EXE", 80715, 0x3d0cd9ed},
+    {"KDREAMS.MAP", 65674, 0x78bd24fc},
+    {0}
+};
+
+static const BE_EmbeddedGameFileDetails_T g_be_embeddedgameverfiles_kdreamse193[] = {
+    {"AUDIODCT.KDR", 1024, 0x8b6116d7, 0x2bbba},
+    {"AUDIOHHD.KDR", 340, 0x499e0cbf, 0x23590},
+    {"CONTEXT.KDR", 1283, 0x5a33439d, 0x236f0},
+    {"EGADICT.KDR", 1024, 0xa69af202, 0x2b3be},
+    {"EGAHEAD.KDR", 12068, 0xb9d789ee, 0x1d830},
+    {"GAMETEXT.KDR", 4256, 0xbfe72f94, 0x23c00},
+    {"MAPDICT.KDR", 1020, 0x6bb0de32, 0x2b7be},
+    {"MAPHEAD.KDR", 11824, 0x2b821e29, 0x20760},
+    {"STORY.KDR", 2526, 0xcafc1d15, 0x24ca0},
+    {0}
+};
+
+static const BE_GameVerDetails_T g_be_gamever_kdreamse193 = {
+    g_be_reqgameverfiles_kdreamse193,
+    g_be_embeddedgameverfiles_kdreamse193,
+    "kdreamse_193",
+    "KDREAMS.EXE",
+    213200,
+    BE_EXECOMPRESSION_LZEXE9X,
+    BE_GAMEVER_KDREAMSE193
+};
+
 
 
 // (REFKEEN) Used for patching version-specific stuff
@@ -435,7 +470,14 @@ bool DreamsEngine::start()
 
     //mLoader.setPermilage(50);
 
-    extractEmbeddedFilesIntoMemory(g_be_gamever_kdreamse113);
+    // Added: Keen for iOS. Pick the version by the size of the unpacked
+    // KDREAMS.EXE (v1.13 was the only one before)
+    const BE_GameVerDetails_T &gameVer =
+            (ExeFile.getExeDataSize() == size_t(g_be_gamever_kdreamse193.decompExeSize)) ?
+                g_be_gamever_kdreamse193 : g_be_gamever_kdreamse113;
+    refkeen_current_gamever = gameVer.verId;
+
+    extractEmbeddedFilesIntoMemory(gameVer);
 
     // Global for the legacy refkeen code.
     gDreamsEngine = this;

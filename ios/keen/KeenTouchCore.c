@@ -23,16 +23,21 @@ static int IsTray(int b) { return b == KT_BTN_TRAYFPS || b == KT_BTN_TRAYKEYS; }
 static int IsCluster(int b) { return b == KT_BTN_FIRE || b == KT_BTN_JUMP || b == KT_BTN_POGO; }
 static unsigned int ClusterCmd(int b) { return b == KT_BTN_FIRE ? KT_CMD_FIRE : b == KT_BTN_JUMP ? KT_CMD_JUMP : KT_CMD_POGO; }
 
+static int IsLevel(int mode) { return mode == KT_MODE_LEVEL || mode == KT_MODE_DREAMS_LEVEL; }
+static int IsMap(int mode) { return mode == KT_MODE_MAP || mode == KT_MODE_DREAMS_MAP; }
+static int IsDreams(int mode) { return mode == KT_MODE_DREAMS_LEVEL || mode == KT_MODE_DREAMS_MAP; }
+
 static void UpdateShown(KT_State *s)
 {
-  const int level = s->mode == KT_MODE_LEVEL, map = s->mode == KT_MODE_MAP, any = level || map;
+  const int level = IsLevel(s->mode), map = IsMap(s->mode), any = level || map, dreams = IsDreams(s->mode);
   s->btn[KT_BTN_FIRE].shown = level;
-  s->btn[KT_BTN_POGO].shown = level;
+  s->btn[KT_BTN_FIRE].label = dreams ? "THROW" : "FIRE";
+  s->btn[KT_BTN_POGO].shown = level && !dreams;
   /* on a map JUMP enters the level Keen stands on */
   s->btn[KT_BTN_JUMP].shown = any;
   s->btn[KT_BTN_STATUS].shown = any;
-  s->btn[KT_BTN_QUICKSAVE].shown = any;
-  s->btn[KT_BTN_QUICKLOAD].shown = any;
+  s->btn[KT_BTN_QUICKSAVE].shown = any && !dreams;
+  s->btn[KT_BTN_QUICKLOAD].shown = any && !dreams;
   s->btn[KT_BTN_MENU].shown = any;
   s->btn[KT_BTN_TRAYFPS].shown = any && s->trayOpen;
   s->btn[KT_BTN_TRAYKEYS].shown = any && s->trayOpen;
@@ -162,7 +167,7 @@ static void UpdateHeld(KT_State *s)
     if (mag >= KT_STICK_DEADZONE) {
       float deg = atan2f(dy, dx) * 180.0f / (float)M_PI; /* 0 right, 90 up */
       if (deg < 0) deg += 360.0f;
-      if (s->mode == KT_MODE_MAP) {
+      if (IsMap(s->mode)) {
         /* the map: eight ways */
         const int sector = ((int)floorf((deg + 22.5f) / 45.0f)) % 8;
         static const unsigned int dirs[8] = {

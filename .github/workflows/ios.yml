@@ -191,7 +191,7 @@ jobs:
         body: |
           Build ${{ github.run_number }} · ${{ needs.build.outputs.build_date }}
           Development builds, rebuilt after every push to the `ios` branch (run ${{ github.run_number }}, commit ${{ github.sha }}). They may not have been tried yet. For the latest release and how to install it, see ${{ github.server_url }}/${{ github.repository }}/releases/latest
-          Keen-ios.ipa is the Keen app (Commander Genius: Commander Keen 1-6; Keen Dreams runs but has no touch controls yet). No game files are included.
+          Keen-ios.ipa is the Keen app (Commander Genius: Commander Keen 1-6 and Keen Dreams v1.13 or v1.93). No game files are included.
           Sideload it, open it once, then copy your own game folders (KEEN1, KEEN2 ...) into Files > On My iPhone > Keen > games.
         files: out/*.ipa
 
