@@ -128,6 +128,13 @@ extern "C" int KeenTouch_CheatTyped(const char *text)
     s.erase(s.find_last_not_of(" \t") + 1);
 
     auto &cheat = gBehaviorEngine.mCheatmode;
+    // Keen Dreams runs on different code (refkeen) that has none of these
+    if (s.rfind("sithewok", 0) == 0 &&
+        (sSeenMode == KT_MODE_DREAMS_LEVEL || sSeenMode == KT_MODE_DREAMS_MAP))
+    {
+        KeenTouchView_Message("sithewok doesn't work in Keen Dreams yet");
+        return 1;
+    }
     if (s == "sithewok")
     {
         cheat.god = true;

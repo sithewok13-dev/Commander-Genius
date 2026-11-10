@@ -1636,8 +1636,17 @@ static bool displayDialogCycle()
     return true;
 }
 
+#ifdef KEEN_IOS_TOUCH
+// Added: Keen for iOS (ios/keen/KeenTouchGame.cpp): 3 a Keen Dreams level, 4 its map
+extern "C" void KeenTouch_SeenMode(int mode);
+#endif
+
 void PlayLoopRun()
 {
+#ifdef KEEN_IOS_TOUCH
+    // Added: Keen for iOS. The touch controls show while this is reported
+    KeenTouch_SeenMode(gamestate.mapon == 0 ? 4 : 3);
+#endif
     CalcSingleGravity ();
     IN_ReadControl(0,&c);		// get player input
     if (!c.button0)

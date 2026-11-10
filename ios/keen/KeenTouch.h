@@ -25,7 +25,10 @@ extern "C" {
    (KeenTouch_SeenMode). Anything else (menus, the title, cut scenes) is
    KT_MODE_NONE: the overlay hides and every touch goes to the game as a
    mouse click, as without it. */
-enum { KT_MODE_NONE = 0, KT_MODE_LEVEL = 1, KT_MODE_MAP = 2 };
+enum { KT_MODE_NONE = 0, KT_MODE_LEVEL = 1, KT_MODE_MAP = 2,
+       /* Keen Dreams: no pogo stick (FIRE throws flower power, labelled
+          THROW), and the engine has no quick save or quick load there */
+       KT_MODE_DREAMS_LEVEL = 3, KT_MODE_DREAMS_MAP = 4 };
 
 enum {
   KT_BTN_FIRE, KT_BTN_JUMP, KT_BTN_POGO,

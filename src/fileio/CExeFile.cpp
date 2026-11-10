@@ -48,6 +48,7 @@ CExeFile::CExeFile()
 
     // Dreams
     mSupportmap[213536][7] = true;
+    mSupportmap[213200][7] = true; // Added: Keen for iOS. Keen Dreams v1.93
 
 	// TODO: Setup CRC-Map
 
@@ -395,7 +396,9 @@ int CExeFile::getEXEVersion() const
         if(mEpisode != 7)
             return -1;
         else
-            return 100; // TODO: Not sure, if it really is version 1.00. Check!
+            return 113; // Added: Keen for iOS. This is v1.13 (213536 bytes unpacked, as in refkeen)
+    case 213200:
+        return (mEpisode == 7) ? 193 : -1; // Added: Keen for iOS. Keen Dreams v1.93
 
     default: return -2;
     }
